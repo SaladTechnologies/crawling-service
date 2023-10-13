@@ -2,7 +2,7 @@
   "name": "crawling-service",
   "version": "1.0.0",
   "description": "A simple web service for managing web crawls",
-  "main": "dist/index.js",
+  "main": "dist/src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc",

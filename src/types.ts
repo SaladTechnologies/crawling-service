@@ -19,13 +19,25 @@ export const crawlSchema = {
     },
     "visited": {
       "type": "number"
+    },
+    "created": {
+      "type": "string"
+    },
+    "queue_url": {
+      "type": "string"
+    },
+    "dlq_url": {
+      "type": "string"
     }
   },
   "required": [
     "id",
     "status",
     "start_url",
-    "visited"
+    "visited",
+    "created",
+    "queue_url",
+    "dlq_url"
   ],
   "type": "object"
 } as const satisfies JSONSchema7;

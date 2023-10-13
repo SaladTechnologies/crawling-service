@@ -29,19 +29,59 @@ resource "aws_dynamodb_table" "crawls" {
   name = "crawls"
   billing_mode = "PAY_PER_REQUEST"
   hash_key = "id"
+
+  attribute {
+    name = "status"
+    type = "S"
+  }
   attribute {
     name = "id"
     type = "S"
+  }
+
+  global_secondary_index {
+    name = "status-index"
+    hash_key = "status"
+    projection_type = "ALL"
   }
 }
 
 resource "aws_dynamodb_table" "pages" {
   name = "pages"
   billing_mode = "PAY_PER_REQUEST"
-  hash_key = "url"
+  hash_key = "id"
+  attribute {
+    name = "id"
+    type = "S"
+  }
+
+  attribute {
+    name = "crawl_id"
+    type = "S"
+  }
+
   attribute {
     name = "url"
     type = "S"
+  }
+
+  attribute {
+    name = "visited"
+    type = "N"
+  }
+
+  global_secondary_index {
+    name = "crawl_id-index"
+    hash_key = "crawl_id"
+    range_key = "visited"
+    projection_type = "ALL"
+  }
+
+  global_secondary_index {
+    name = "url-index"
+    hash_key = "url"
+    range_key = "visited"
+    projection_type = "ALL"
   }
 }
 
@@ -85,6 +125,8 @@ data "aws_iam_policy_document" "crawler-service-permissions" {
       "sqs:DeleteMessage",
       "sqs:SendMessageBatch",
       "sqs:GetQueueUrl",
+      "sqs:CreateQueue",
+      "sqs:GetQueueAttributes",
     ]
 
     resources = [

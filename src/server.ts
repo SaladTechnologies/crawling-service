@@ -1,6 +1,7 @@
 import { JsonSchemaToTsProvider } from "@fastify/type-provider-json-schema-to-ts";
 import Fastify, { FastifyInstance, FastifyServerOptions } from "fastify";
 import config from "./config";
+import { routes as crawlRoutes } from "./routes/crawl";
 
 export const build = async (opts: FastifyServerOptions = {}): Promise<FastifyInstance> => {
   const server = Fastify(opts).withTypeProvider<JsonSchemaToTsProvider>();
@@ -67,6 +68,20 @@ export const build = async (opts: FastifyServerOptions = {}): Promise<FastifyIns
     }
   });
 
+  server.register(crawlRoutes);
+
   await server.ready();
   return server;
+};
+
+export const start = async (server: FastifyInstance) => {
+  try {
+    await server.listen({
+      port: config.server.port,
+      host: config.server.host,
+    });
+  } catch (err) {
+    server.log.error(err);
+    process.exit(1);
+  }
 };
