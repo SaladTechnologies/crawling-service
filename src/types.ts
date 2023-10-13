@@ -71,14 +71,20 @@ export const pageSchema = {
     "visited": {
       "format": "date-time",
       "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "crawl_id": {
+      "type": "string"
     }
   },
   "required": [
     "url",
     "links",
-    "content_key",
     "status",
-    "visited"
+    "crawl_id",
+    "id"
   ],
   "type": "object"
 } as const satisfies JSONSchema7;
@@ -125,3 +131,26 @@ export const crawlSubmissionSchema = {
 } as const satisfies JSONSchema7;
 
 export type CrawlSubmission = FromSchema<typeof crawlSubmissionSchema>;
+
+export const crawlJobSchema = {
+  "additionalProperties": false,
+  "properties": {
+    "crawl_id": {
+      "type": "string"
+    },
+    "page_id": {
+      "type": "string"
+    },
+    "url": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "crawl_id",
+    "page_id",
+    "url"
+  ],
+  "type": "object"
+} as const satisfies JSONSchema7;
+
+export type CrawlJob = FromSchema<typeof crawlJobSchema>;
