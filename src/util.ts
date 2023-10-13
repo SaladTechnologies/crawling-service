@@ -3,7 +3,7 @@ import { SendMessageCommand, GetQueueUrlCommand } from "@aws-sdk/client-sqs";
 import { PutItemCommand, QueryCommand } from "@aws-sdk/client-dynamodb";
 import crypto from "crypto";
 import config from "./config";
-import { CrawlJob, Page } from "./types";
+import { CrawlJob, Page, Crawl } from "./types";
 
 const cachedQueueUrls: { [key: string]: string } = {};
 const localVisitedCache = new Set<string>();
@@ -100,4 +100,30 @@ export const queueUrlToCrawl = async (crawlId: string, url: string) => {
   ]);
   
   return crawlJob;
+}
+
+export const getRunningCrawls = async () : Promise<Crawl[]> => {
+  const queryCmd = new QueryCommand({
+    TableName: config.aws.dynamodb.crawlTable,
+    IndexName: "status-index",
+    KeyConditionExpression: "status = :status",
+    ExpressionAttributeValues: {
+      ":status": { S: "running" }
+    }
+  });
+
+  const queryRes = await dynamodb.send(queryCmd);
+  if (!queryRes.Items) {
+    return [];
+  }
+  
+  return queryRes.Items.map(item => ({
+    id: item.id.S,
+    start_url: item.start_url.S,
+    status: item.status.S,
+    queue_url: item.queue_url.S,
+    dlq_url: item.dlq_url.S,
+    visited: parseInt(item.visited.N || "0"),
+    created: item.created.S
+  } as Crawl));
 }

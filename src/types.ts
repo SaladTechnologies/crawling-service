@@ -21,6 +21,7 @@ export const crawlSchema = {
       "type": "number"
     },
     "created": {
+      "format": "date-time",
       "type": "string"
     },
     "queue_url": {
@@ -143,12 +144,16 @@ export const crawlJobSchema = {
     },
     "url": {
       "type": "string"
+    },
+    "delete_id": {
+      "type": "string"
     }
+    
   },
   "required": [
     "crawl_id",
     "page_id",
-    "url"
+    "url",
   ],
   "type": "object"
 } as const satisfies JSONSchema7;

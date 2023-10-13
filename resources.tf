@@ -127,6 +127,7 @@ data "aws_iam_policy_document" "crawler-service-permissions" {
       "sqs:GetQueueUrl",
       "sqs:CreateQueue",
       "sqs:GetQueueAttributes",
+      "sqs:PurgeQueue"
     ]
 
     resources = [

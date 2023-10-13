@@ -1,9 +1,10 @@
 import { FastifyInstance } from "fastify";
 import { sqs, dynamodb } from "../clients";
 import { PutItemCommand, GetItemCommand, UpdateItemCommand } from "@aws-sdk/client-dynamodb";
-import { CreateQueueCommand, SendMessageCommand, GetQueueAttributesCommand } from "@aws-sdk/client-sqs";
+import { CreateQueueCommand, GetQueueAttributesCommand, PurgeQueueCommand } from "@aws-sdk/client-sqs";
 import config from "../config";
 import { Crawl, crawlSchema, CrawlSubmission, crawlSubmissionSchema } from "../types";
+import { queueUrlToCrawl } from "../util";
 import crypto from "crypto";
 
 export const routes = (server: FastifyInstance, done: () => void ) => {
@@ -105,16 +106,8 @@ export const routes = (server: FastifyInstance, done: () => void ) => {
         throw new Error("An error was encountered while creating the crawl");
       }
 
-      const msgCmd = new SendMessageCommand({
-        QueueUrl: crawl.queue_url,
-        MessageBody: JSON.stringify({
-          url: start_url,
-          crawl_id: id
-        })
-      });
-
       try {
-        await sqs.send(msgCmd);
+        await queueUrlToCrawl(id, start_url);
       } catch (e) {
         throw new Error("An error was encountered while starting the crawl");
       }
@@ -171,17 +164,18 @@ export const routes = (server: FastifyInstance, done: () => void ) => {
     }
   );
 
-  server.delete<{ Params: { id: string } }>(
+  server.delete<{ Params: { id: string, hard: boolean } }>(
     "/crawl/:id",
     {
       schema: {
         params: {
-          id: { type: "string" }
+          id: { type: "string" },
+          hard: { type: "boolean" }
         }
       }
     },
     async (req, reply) => {
-      const { id } = req.params;
+      const { id, hard } = req.params;
 
       // Try updating the status of the crawl to stopped
       const updateCmd = new UpdateItemCommand({
@@ -221,6 +215,25 @@ export const routes = (server: FastifyInstance, done: () => void ) => {
         }
 
         throw new Error("An error was encountered while stopping the crawl");
+      }
+
+      if (hard) {
+        // Purge the queues
+        const purgeQCmd = new PurgeQueueCommand({
+          QueueUrl: crawl.queue_url
+        });
+        const purgeDLQCmd = new PurgeQueueCommand({
+          QueueUrl: crawl.dlq_url
+        });
+
+        try {
+          await Promise.all([
+            sqs.send(purgeQCmd),
+            sqs.send(purgeDLQCmd)
+          ]);
+        } catch(e) {
+          throw new Error("An error was encountered while stopping the crawl. The queues may not have been purged");
+        }
       }
 
       return crawl;
