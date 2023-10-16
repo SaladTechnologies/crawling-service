@@ -15,7 +15,7 @@ const cache = new NodeCache({
   useClones: false,
 });
 
-export const getCrawl = async (crawlId: string) : Promise<Crawl | null> => {
+export const getCrawl = async (crawlId: string): Promise<Crawl | null> => {
   let crawl: Crawl | undefined = cache.get(crawlId!);
   if (!crawl) {
     const getCmd = new GetItemCommand({
@@ -53,11 +53,14 @@ export const getQueueUrl = async (crawlId: string) => {
   return queueUrl.QueueUrl;
 }
 
-export const getPageByUrl = async (url: string) : Promise<Page | null> => {
+export const getPageByUrl = async (url: string): Promise<Page | null> => {
   const queryCmd = new QueryCommand({
     TableName: config.aws.dynamodb.pagesTable,
     IndexName: "url-index",
-    KeyConditionExpression: "url = :url",
+    KeyConditionExpression: "#url = :url",
+    ExpressionAttributeNames: {
+      "#url": "url"
+    },
     ExpressionAttributeValues: {
       ":url": { S: url }
     }
@@ -126,15 +129,17 @@ export const queueUrlToCrawl = async (crawlId: string, url: string, depth: numbe
         id: { S: crawlId }
       },
       UpdateExpression: "SET #visited = #visited + :incr",
-      ConditionExpression: "attribute_not_exists(max_pages) OR #visited < max_pages OR max_pages = -1",
+      ConditionExpression: "attribute_not_exists(max_pages) OR #visited < #max_pages OR #max_pages = :neg_1",
       ExpressionAttributeNames: {
-        "#visited": "visited"
+        "#visited": "visited",
+        "#max_pages": "max_pages"
       },
       ExpressionAttributeValues: {
-        ":incr": { N: "1" }
+        ":incr": { N: "1" },
+        ":neg_1": { N: "-1" }
       },
       ReturnValues: "ALL_NEW",
-      
+
     });
     const { Attributes } = await dynamodb.send(incrCmd);
     crawl = unmarshallCrawl(Attributes);
@@ -145,15 +150,16 @@ export const queueUrlToCrawl = async (crawlId: string, url: string, depth: numbe
       return;
     }
 
-    throw new Error("An error was encountered while incrementing the crawl");
+    e.response = "An error was encountered while incrementing the crawl"
+    throw e;
   }
 
   localVisitedCache.add(url);
 
   const queueUrl = await getQueueUrl(crawlId);
-  
+
   const pageId = crypto.randomUUID();
-  
+
   const page: Page = {
     id: pageId,
     crawl_id: crawlId,
@@ -182,11 +188,11 @@ export const queueUrlToCrawl = async (crawlId: string, url: string, depth: numbe
     dynamodb.send(putPageCmd),
     sqs.send(sendMessageCmd)
   ]);
-  
+
   return crawlJob;
 }
 
-export const getRunningCrawls = async () : Promise<Crawl[]> => {
+export const getRunningCrawls = async (): Promise<Crawl[]> => {
   const queryCmd = new QueryCommand({
     TableName: config.aws.dynamodb.crawlTable,
     IndexName: "status-index",
@@ -200,24 +206,36 @@ export const getRunningCrawls = async () : Promise<Crawl[]> => {
   if (!queryRes.Items) {
     return [];
   }
-  
+
   return queryRes.Items.map(item => (unmarshallCrawl(item) as Crawl));
 }
 
-export function marshallPage(page: Page) : any {
-  return {
+export function marshallPage(page: Page): any {
+  const item: any = {
     id: { S: page.id },
     crawl_id: { S: page.crawl_id },
     url: { S: page.url },
-    links: { SS: page.links },
     status: { S: page.status },
     depth: { N: page.depth?.toString() || "0" },
-    content_key: { S: page.content_key },
-    visited: { N: page.visited ? new Date(page.visited).getTime().toString() : "0" },
   };
+
+  if (page.links?.length) {
+    item.links = { SS: page.links };
+  }
+
+  if (page.content_key) {
+    item.content_key = { S: page.content_key };
+  }
+
+  if (page.visited) {
+    item.visited = { N: new Date(page.visited).getTime().toString() };
+  }
+
+  return item;
+
 }
 
-export function unmarshallPage(item: any) : Page {
+export function unmarshallPage(item: any): Page {
   return {
     id: item.id.S,
     crawl_id: item.crawl_id.S,
@@ -230,7 +248,7 @@ export function unmarshallPage(item: any) : Page {
   };
 }
 
-export function marshallCrawl(crawl: Crawl) : any {
+export function marshallCrawl(crawl: Crawl): any {
   return {
     id: { S: crawl.id },
     start_url: { S: crawl.start_url },
@@ -239,13 +257,13 @@ export function marshallCrawl(crawl: Crawl) : any {
     dlq_url: { S: crawl.dlq_url },
     visited: { N: crawl.visited.toString() },
     created: { S: crawl.created },
-    max_depth: { N: crawl.max_depth?.toString() || 10 },
-    max_pages: { N: crawl.max_pages?.toString() || 1000 },
+    max_depth: { N: crawl.max_depth?.toString() || "10" },
+    max_pages: { N: crawl.max_pages?.toString() || "1000" },
     same_domain: { BOOL: crawl.same_domain || true }
   };
 }
 
-export function unmarshallCrawl(item: any) : Crawl {
+export function unmarshallCrawl(item: any): Crawl {
   return {
     id: item.id.S,
     start_url: item.start_url.S,

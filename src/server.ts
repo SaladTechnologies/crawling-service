@@ -47,8 +47,8 @@ export const build = async (opts: FastifyServerOptions = {}): Promise<FastifyIns
     }
   );
 
-  server.setErrorHandler((error, request, reply) => {
-    const { message, statusCode, validation, validationContext } = error;
+  server.setErrorHandler((error: any, request, reply) => {
+    const { message, statusCode, validation, validationContext, response } = error;
     if (statusCode === 413) {
       reply.status(413).send({
         error: "File too large",
@@ -68,7 +68,7 @@ export const build = async (opts: FastifyServerOptions = {}): Promise<FastifyIns
         console.error(error);
       }
       reply.status(statusCode || 500).send({
-        error: message,
+        error: response,
       });
     }
   });

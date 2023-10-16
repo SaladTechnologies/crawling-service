@@ -113,6 +113,8 @@ data "aws_iam_policy_document" "crawler-service-permissions" {
     resources = [
       "${aws_dynamodb_table.crawls.arn}",
       "${aws_dynamodb_table.pages.arn}",
+      "${aws_dynamodb_table.crawls.arn}/index/*",
+      "${aws_dynamodb_table.pages.arn}/index/*",
     ]
   }
 

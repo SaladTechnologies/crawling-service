@@ -39,8 +39,9 @@ export const routes = (server: FastifyInstance, _: any, done: () => void ) => {
       let dlqRes;
       try {
         dlqRes = await sqs.send(dlqCmd)
-      } catch (e) {
-        throw new Error("An error was encountered while creating the dead-letter queue for the crawl");
+      } catch (e: any) {
+        e.response = "An error was encountered while creating the dead-letter queue for the crawl";
+        throw e;
       }
 
       if (!dlqRes.QueueUrl) {
@@ -58,9 +59,11 @@ export const routes = (server: FastifyInstance, _: any, done: () => void ) => {
           })
         );
       } catch (e) {
+        console.log(e);
         throw new Error("An error was encountered while creating Queues for the crawl");
       }
       if (!dlqInfo.Attributes || !dlqInfo.Attributes.QueueArn) {
+        console.log(dlqInfo);
         throw new Error("An error was encountered while creating Queues for the crawl");
       }
 
@@ -75,7 +78,7 @@ export const routes = (server: FastifyInstance, _: any, done: () => void ) => {
             maxReceiveCount: 2
           }),
           VisibilityTimeout: "20",
-          WaitTimeSeconds: "1"
+          ReceiveMessageWaitTimeSeconds: "1"
         }
       });
 
@@ -83,10 +86,12 @@ export const routes = (server: FastifyInstance, _: any, done: () => void ) => {
       try {
         qRes = await sqs.send(qCmd);
       } catch (e) {
+        console.log(e);
         throw new Error("An error was encountered while creating Queues for the crawl");
       }
 
       if (!qRes.QueueUrl) {
+        console.log(qRes);
         throw new Error("An error was encountered while creating Queues for the crawl");
       }
 
@@ -99,14 +104,16 @@ export const routes = (server: FastifyInstance, _: any, done: () => void ) => {
 
       try {
         await dynamodb.send(putItemCmd);
-      } catch (e) {
-        throw new Error("An error was encountered while creating the crawl");
+      } catch (e: any) {
+        e.response = "An error was encountered while creating the crawl";
+        throw e;
       }
 
       try {
         await queueUrlToCrawl(id, start_url);
-      } catch (e) {
-        throw new Error("An error was encountered while starting the crawl");
+      } catch (e:any) {
+        e.response = "An error was encountered while starting the crawl";
+        throw e;
       }
 
       return reply.code(201).send(crawl);
