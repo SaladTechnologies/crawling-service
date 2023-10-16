@@ -14,7 +14,7 @@ saladtechnologies/crawling-service:latest
 ## Provisioning AWS Resources
 
 You will need [OpenTofu](https://opentofu.org/) or terraform for this.
-`resources.tf` expects an aws profile named "tofu". You will need to rename your s3 bucket in `resources.tf` as well.
+`resources.tf` expects an aws profile named "tofu" that has adequate permissions to create all of the necessary resources. You will need to rename your s3 bucket in `resources.tf` as well.
 
 ```bash
 tofu init
