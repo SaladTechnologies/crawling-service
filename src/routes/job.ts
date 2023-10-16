@@ -83,12 +83,13 @@ export const routes = (server: FastifyInstance, done: () => void ) => {
           Key: {
             id: { S: job.page_id }
           },
-          UpdateExpression: "SET #status = :status",
+          UpdateExpression: "SET #status = :status, visited = :visited",
           ExpressionAttributeNames: {
             "#status": "status"
           },
           ExpressionAttributeValues: {
-            ":status": { S: "crawling" }
+            ":status": { S: "crawling" },
+            ":visited": { S: new Date().toISOString() }
           }
         });
 
