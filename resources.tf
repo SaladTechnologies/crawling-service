@@ -25,6 +25,10 @@ data "aws_caller_identity" "current" {}
 
 data "aws_region" "current" {}
 
+locals {
+  queue_prefix = "crawl-queue-"
+}
+
 resource "aws_dynamodb_table" "crawls" {
   name = "crawls"
   billing_mode = "PAY_PER_REQUEST"
@@ -133,7 +137,7 @@ data "aws_iam_policy_document" "crawler-service-permissions" {
     ]
 
     resources = [
-      "arn:aws:sqs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:crawl-queue-*",
+      "arn:aws:sqs:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:${local.queue_prefix}*",
     ]
   }
 }
@@ -160,4 +164,20 @@ output "crawler-service-access-key" {
 output "crawler-service-secret-key" {
   value = aws_iam_access_key.crawler-service.secret
   sensitive = true
+}
+
+output "s3-bucket" {
+  value = aws_s3_bucket.page-data.id
+}
+
+output "pages-table" {
+  value = aws_dynamodb_table.pages.id
+}
+
+output "crawls-table" {
+  value = aws_dynamodb_table.crawls.id
+}
+
+output "queue-prefix" {
+  value = local.queue_prefix
 }

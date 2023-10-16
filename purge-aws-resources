@@ -1,0 +1,101 @@
+#! /usr/bin/env bash
+
+# This script will purge all AWS resources created by the Tofu code.
+# Ask the user if they're sure (y/n) before proceeding.
+awsProfile=tofu
+
+function checkBeforeProceeding() {
+  while true; do
+    read -p "Do you want to continue? (Y/N): " yn
+    case $yn in
+    [Yy]*) # User entered "Y" or "y"
+      break ;;
+    [Nn]*) # User entered "N" or "n"
+      exit ;;
+    *) # Invalid input
+      echo "Please answer with Y or N." ;;
+    esac
+  done
+}
+
+function purgeDynamoTable() {
+  local table_name="$1"
+  echo "Purging table '$table_name'"
+  checkBeforeProceeding
+
+  local count=0
+
+  # Scan and delete items in batches of 25 (DynamoDB's batch limit)
+  while true; do
+    # Perform a scan and get the items in the batch
+    items=$(aws dynamodb --profile $awsProfile scan --table-name "$table_name" --limit 25 --query 'Items')
+
+    if [ -z "$items" ]; then
+      echo "Table $table_name is now empty."
+      break
+    fi
+
+    # Get the number of items in the batch
+    batch_size=$(echo $items | jq length)
+    if [ "$batch_size" -eq 0 ]; then
+      echo "Table $table_name is now empty."
+      break
+    fi
+
+    # Create a JSON file with the items to delete using DeleteRequest format
+    jq -n --argjson items "$items" '{"'$table_name'": [$items[] | {"DeleteRequest": {"Key": {"id": .id}}}]}' >delete_items.json
+
+    # Batch delete the items
+    aws dynamodb --profile $awsProfile batch-write-item --request-items file://delete_items.json --no-cli-pager
+
+    # Increment the count
+    count=$((count + batch_size))
+    echo "Deleted $count items from table $table_name"
+  done
+
+  echo "Table $table_name has been purged."
+  rm delete_items.json
+}
+
+echo "Purging all resources managed by the crawl-service."
+checkBeforeProceeding
+
+queuePrefix=$(tofu output -raw -no-color queue-prefix)
+bucket=$(tofu output -raw -no-color s3-bucket)
+crawlsTable=$(tofu output -raw -no-color crawls-table)
+pagesTable=$(tofu output -raw -no-color pages-table)
+
+echo "Deleting SQS queues with prefix $queuePrefix"
+queueUrls=$(aws sqs --profile $awsProfile list-queues --queue-name-prefix $queuePrefix --output text | awk '{print $2}')
+
+numQueues=$(echo $queueUrls | wc -w)
+echo "Found $numQueues queues with prefix $queuePrefix"
+# if there's 0, no need to check or do anything
+if [ "$numQueues" -eq 0 ]; then
+  echo "Continuing..."
+
+else
+  checkBeforeProceeding
+  for queueUrl in $queueUrls; do
+    echo "Deleting queue $queueUrl"
+    aws sqs --profile $awsProfile delete-queue --queue-url $queueUrl
+  done
+fi
+
+echo "Deleting all objects from S3 bucket $bucket"
+objs=$(aws s3 --profile $awsProfile ls s3://$bucket --recursive | awk '{print $4}')
+numObjs=$(echo $objs | wc -w)
+echo "Found $numObjs objects in bucket $bucket"
+# Same as above, if 0, nothing to do
+if [ "$numObjs" -eq 0 ]; then
+  echo "Continuing..."
+else
+  checkBeforeProceeding
+  for obj in $objs; do
+    echo "Deleting object $obj"
+    aws s3 --profile $awsProfile rm s3://$bucket/$obj
+  done
+fi
+
+purgeDynamoTable $crawlsTable
+purgeDynamoTable $pagesTable
