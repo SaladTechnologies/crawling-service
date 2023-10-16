@@ -6,7 +6,7 @@ const {
   AWS_REGION,
   PORT = '3000',
   HOST = 'localhost',
-  PUBLIC_URL = "http://localhost:3000",
+  PUBLIC_URL = "localhost:3000",
   S3_BUCKET_NAME,
   CRAWL_TABLE_NAME,
   PAGES_TABLE_NAME,

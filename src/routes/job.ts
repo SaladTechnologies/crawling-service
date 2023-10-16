@@ -13,7 +13,7 @@ const cache = new NodeCache({
   useClones: false,
 });
 
-export const routes = (server: FastifyInstance, done: () => void ) => {
+export const routes = (server: FastifyInstance,  _: any, done: () => void ) => {
   server.get<{ Querystring: { crawl?: string, num?: number }, Response: CrawlJob[]}>(
     "/job",
     {
@@ -107,6 +107,11 @@ export const routes = (server: FastifyInstance, done: () => void ) => {
         params: {
           id: { type: "string" },
           crawlId: { type: "string" },
+        },
+        response: {
+          204: {
+            type: "null"
+          }
         }
       }
     },
@@ -125,6 +130,8 @@ export const routes = (server: FastifyInstance, done: () => void ) => {
       } catch (e: any) {
         throw new Error("An error was encountered while deleting the job");
       }
+
+      return reply.status(204).send();
     }
   );
 

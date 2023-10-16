@@ -7,10 +7,7 @@ import config from '../config';
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { queueUrlToCrawl, unmarshallPage } from '../util';
 
-
-
-
-export const routes = (server: FastifyInstance, options: any, done: () => void) => {
+export const routes = (server: FastifyInstance, _: any, done: () => void) => {
   server.get<{
     Params: { id: string },
     Querystring: { hydrate?: boolean },
@@ -60,15 +57,7 @@ export const routes = (server: FastifyInstance, options: any, done: () => void) 
         });
       }
 
-      const page: Page = {
-        id: pageItem.Item.id.S!,
-        crawl_id: pageItem.Item.crawl_id.S!,
-        url: pageItem.Item.url.S!,
-        links: pageItem.Item.links.SS || [],
-        status: pageItem.Item.status.S as "queued" | "crawling" | "failed",
-        content_key: pageItem.Item.content_key?.S,
-        visited: pageItem.Item.visited.S
-      };
+      const page: Page = unmarshallPage(pageItem.Item);
 
       if (page.content_key && req.query.hydrate) {
         // Get the content from S3
@@ -93,7 +82,8 @@ export const routes = (server: FastifyInstance, options: any, done: () => void) 
 
   server.put<{
     Params: { id: string },
-    Body: PageSubmission
+    Body: PageSubmission,
+    Response: Page
   }>(
     "/page/:id",
     {
@@ -104,7 +94,10 @@ export const routes = (server: FastifyInstance, options: any, done: () => void) 
             description: "The ID of the page to update"
           }
         },
-        body: pageSubmissionSchema
+        body: pageSubmissionSchema,
+        response: {
+          200: pageSchema
+        }
       }
     },
     async (req, reply) => {

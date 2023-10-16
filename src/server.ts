@@ -2,9 +2,13 @@ import { JsonSchemaToTsProvider } from "@fastify/type-provider-json-schema-to-ts
 import Fastify, { FastifyInstance, FastifyServerOptions } from "fastify";
 import config from "./config";
 import { routes as crawlRoutes } from "./routes/crawl";
+import { routes as pageRoutes } from "./routes/page";
+import { routes as jobRoutes } from "./routes/job";
 
 export const build = async (opts: FastifyServerOptions = {}): Promise<FastifyInstance> => {
   const server = Fastify(opts).withTypeProvider<JsonSchemaToTsProvider>();
+
+  await server.register(require("@fastify/cors"))
 
   await server.register(require("@fastify/swagger"), {
     routePrefix: "/docs",
@@ -30,6 +34,7 @@ export const build = async (opts: FastifyServerOptions = {}): Promise<FastifyIns
     "/hc",
     {
       schema: {
+        description: "Health check",
         response: {
           200: {
             type: "string",
@@ -69,6 +74,8 @@ export const build = async (opts: FastifyServerOptions = {}): Promise<FastifyIns
   });
 
   server.register(crawlRoutes);
+  server.register(pageRoutes);
+  server.register(jobRoutes);
 
   await server.ready();
   return server;

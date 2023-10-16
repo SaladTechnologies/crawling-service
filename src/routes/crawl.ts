@@ -7,12 +7,15 @@ import { Crawl, crawlSchema, CrawlSubmission, crawlSubmissionSchema } from "../t
 import { marshallCrawl, queueUrlToCrawl, unmarshallCrawl } from "../util";
 import crypto from "crypto";
 
-export const routes = (server: FastifyInstance, done: () => void ) => {
-  server.post<{ Body: CrawlSubmission }>(
+export const routes = (server: FastifyInstance, _: any, done: () => void ) => {
+  server.post<{ Body: CrawlSubmission, Response: Crawl }>(
     "/crawl", 
     {
       schema: {
-        body: crawlSubmissionSchema
+        body: crawlSubmissionSchema,
+        response: {
+          201: crawlSchema
+        }
       }
     },
     async (req, reply) => {
@@ -111,7 +114,7 @@ export const routes = (server: FastifyInstance, done: () => void ) => {
   );
 
 
-  server.get<{ Params: { id: string } }>(
+  server.get<{ Params: { id: string }, Response: Crawl }>(
     "/crawl/:id",
     {
       schema: {
@@ -150,13 +153,20 @@ export const routes = (server: FastifyInstance, done: () => void ) => {
     }
   );
 
-  server.delete<{ Params: { id: string, hard: boolean } }>(
+  server.delete<{ Params: { id: string, hard: boolean }, Response: Crawl }>(
     "/crawl/:id",
     {
       schema: {
         params: {
           id: { type: "string" },
-          hard: { type: "boolean" }
+          hard: { 
+            type: "boolean",
+            default: false,
+            description: "Whether to purge the queues"
+          }
+        },
+        response: {
+          200: crawlSchema
         }
       }
     },
@@ -179,7 +189,7 @@ export const routes = (server: FastifyInstance, done: () => void ) => {
         ReturnValues: "ALL_NEW"
       });
 
-      let crawl: Crawl | undefined;
+      let crawl: Crawl;
       try {
         const { Attributes } = await dynamodb.send(updateCmd);
         if (!Attributes) {
