@@ -1,6 +1,6 @@
 {
   "name": "crawling-service",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "A simple web service for managing web crawls",
   "main": "dist/src/index.js",
   "scripts": {

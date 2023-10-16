@@ -4,6 +4,10 @@ A simple web service for managing web crawls
 ## Under Construction
 This service is not ready to use yet.
 
+## Docs
+
+Docs are available at `/docs` when the service is running.
+
 ## Build
 
 ```bash
@@ -29,4 +33,10 @@ docker run --rm -it \
 -e PAGES_TABLE_NAME=pages \
 -v ~/.aws:/root/.aws \
 saladtechnologies/crawling-service:latest
+```
+
+OR
+
+```bash
+docker compose up
 ```

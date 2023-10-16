@@ -128,7 +128,8 @@ export const routes = (server: FastifyInstance,  _: any, done: () => void ) => {
       try {
         await sqs.send(deleteCmd);
       } catch (e: any) {
-        throw new Error("An error was encountered while deleting the job");
+        e.response = "An error was encountered while deleting the job";
+        throw e
       }
 
       return reply.status(204).send();

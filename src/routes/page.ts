@@ -47,8 +47,9 @@ export const routes = (server: FastifyInstance, _: any, done: () => void) => {
       let pageItem;
       try {
         pageItem = await dynamodb.send(getCmd);
-      } catch (e) {
-        throw new Error("An error was encountered while retrieving the page");
+      } catch (e: any) {
+        e.response = "An error was encountered while retrieving the page";
+        throw e;
       }
 
       if (!pageItem.Item) {
@@ -69,8 +70,9 @@ export const routes = (server: FastifyInstance, _: any, done: () => void) => {
         let object;
         try {
           object = await s3.send(getCmd);
-        } catch (e) {
-          throw new Error("An error was encountered while retrieving the page content");
+        } catch (e: any) {
+          e.response = "An error was encountered while retrieving the page content";
+          throw e;
         }
 
         page.content = await object.Body?.transformToString();
@@ -114,8 +116,9 @@ export const routes = (server: FastifyInstance, _: any, done: () => void) => {
 
       try {
         await s3.send(putCmd);
-      } catch (e) {
-        throw new Error("An error was encountered while uploading the page content");
+      } catch (e:any) {
+        e.response = "An error was encountered while uploading the page content";
+        throw e;
       }
 
       // Filter the links to unique links, and strip anchor tags
@@ -156,8 +159,9 @@ export const routes = (server: FastifyInstance, _: any, done: () => void) => {
           throw new Error("An error was encountered while updating the page");
         }
         page = unmarshallPage(Attributes);
-      } catch (e) {
-        throw new Error("An error was encountered while updating the page");
+      } catch (e: any) {
+        e.response = "An error was encountered while updating the page";
+        throw e;
       }
 
       const linkResults = await Promise.allSettled(uniqueLinks.map(link => queueUrlToCrawl(page.crawl_id!, link, (page.depth || 0) + 1)));
