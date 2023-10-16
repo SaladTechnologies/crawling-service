@@ -4,7 +4,7 @@ import { PutItemCommand, GetItemCommand, UpdateItemCommand } from "@aws-sdk/clie
 import { CreateQueueCommand, GetQueueAttributesCommand, PurgeQueueCommand } from "@aws-sdk/client-sqs";
 import config from "../config";
 import { Crawl, crawlSchema, CrawlSubmission, crawlSubmissionSchema } from "../types";
-import { queueUrlToCrawl } from "../util";
+import { marshallCrawl, queueUrlToCrawl, unmarshallCrawl } from "../util";
 import crypto from "crypto";
 
 export const routes = (server: FastifyInstance, done: () => void ) => {
@@ -70,7 +70,9 @@ export const routes = (server: FastifyInstance, done: () => void ) => {
           RedrivePolicy: JSON.stringify({
             deadLetterTargetArn: dlqInfo.Attributes.QueueArn,
             maxReceiveCount: 2
-          })
+          }),
+          VisibilityTimeout: "20",
+          WaitTimeSeconds: "1"
         }
       });
 
@@ -89,15 +91,7 @@ export const routes = (server: FastifyInstance, done: () => void ) => {
 
       const putItemCmd = new PutItemCommand({
         TableName: config.aws.dynamodb.crawlTable,
-        Item: {
-          id: { S: id },
-          start_url: { S: start_url },
-          status: { S: crawl.status },
-          visited: { N: crawl.visited.toString() },
-          created: { S: crawl.created },
-          queue_url: { S: crawl.queue_url },
-          dlq_url: { S: crawl.dlq_url }
-        }
+        Item: marshallCrawl(crawl)
       });
 
       try {
@@ -150,15 +144,7 @@ export const routes = (server: FastifyInstance, done: () => void ) => {
         throw new Error("An error was encountered while retrieving the crawl");
       }
 
-      const crawl: Crawl = {
-        id: item.Item.id.S || "",
-        start_url: item.Item.start_url.S || "",
-        status: item.Item.status.S as "running" | "completed" | "stopped",
-        visited: parseInt(item.Item.visited.N || "0"),
-        created: item.Item.created.S || "",
-        queue_url: item.Item.queue_url.S || "",
-        dlq_url: item.Item.dlq_url.S || ""
-      };
+      const crawl: Crawl = unmarshallCrawl(item.Item);
 
       return crawl;
     }
@@ -199,15 +185,7 @@ export const routes = (server: FastifyInstance, done: () => void ) => {
         if (!Attributes) {
           throw new Error("An error was encountered while stopping the crawl");
         }
-        crawl = {
-          id: Attributes.id.S || "",
-          start_url: Attributes.start_url.S || "",
-          status: Attributes.status.S as "running" | "completed" | "stopped",
-          visited: parseInt(Attributes.visited.N || "0"),
-          created: Attributes.created.S || "",
-          queue_url: Attributes.queue_url.S || "",
-          dlq_url: Attributes.dlq_url.S || ""
-        }
+        crawl = unmarshallCrawl(Attributes);
       } catch (e: any) {
         // If the crawl doesn't exist, we return a 404
         if (e.name === "ResourceNotFoundException") {
