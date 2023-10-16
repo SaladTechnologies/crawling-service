@@ -144,25 +144,14 @@ export const pageSubmissionSchema = {
     },
     "links": {
       "items": {
-        "type": "string"
+        "type": "string",
       },
       "type": "array",
       "description": "The links found on the page"
     },
-    "url": {
-      "type": "string",
-      "description": "The URL of the page"
-    },
-    // "images": {
-    //   "items": {
-    //     "type": "string"
-    //   },
-    //   "type": "array",
-    //   "description": "The images found on the page, if any. Base64 encoded"
-    // }
+
   },
   "required": [
-    "url",
     "content",
     "links"
   ],

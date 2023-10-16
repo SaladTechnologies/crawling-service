@@ -196,7 +196,10 @@ export const getRunningCrawls = async (): Promise<Crawl[]> => {
   const queryCmd = new QueryCommand({
     TableName: config.aws.dynamodb.crawlTable,
     IndexName: "status-index",
-    KeyConditionExpression: "status = :status",
+    KeyConditionExpression: "#status = :status",
+    ExpressionAttributeNames: {
+      "#status": "status"
+    },
     ExpressionAttributeValues: {
       ":status": { S: "running" }
     }
@@ -240,10 +243,10 @@ export function unmarshallPage(item: any): Page {
     id: item.id.S,
     crawl_id: item.crawl_id.S,
     url: item.url.S,
-    links: item.links.SS,
+    links: item.links?.SS || [],
     status: item.status.S,
     depth: parseInt(item.depth.N || "0"),
-    content_key: item.content_key.S,
+    content_key: item.content_key?.S,
     visited: item.visited.N ? new Date(parseInt(item.visited.N)).toISOString() : undefined
   };
 }

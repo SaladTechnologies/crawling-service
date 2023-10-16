@@ -48,6 +48,9 @@ export const routes = (server: FastifyInstance,  _: any, done: () => void ) => {
 
         // This is where you would implement logic to determine which crawl to hand out a job for.
         // For now, we return randomly.
+        if (!runningCrawls.length) {
+          return [];
+        }
 
         const randomCrawl = runningCrawls[Math.floor(Math.random() * runningCrawls.length)];
         crawl = randomCrawl.id;
@@ -72,7 +75,7 @@ export const routes = (server: FastifyInstance,  _: any, done: () => void ) => {
           page_id: body.page_id,
           crawl_id: body.crawl_id,
           url: body.url,
-          delete_id: message.ReceiptHandle!
+          delete_id: Buffer.from(message.ReceiptHandle!).toString("base64")
         }
       });
 
@@ -89,7 +92,7 @@ export const routes = (server: FastifyInstance,  _: any, done: () => void ) => {
           },
           ExpressionAttributeValues: {
             ":status": { S: "crawling" },
-            ":visited": { S: new Date().toISOString() }
+            ":visited": { N: new Date().getTime().toString() }
           }
         });
 
@@ -122,7 +125,7 @@ export const routes = (server: FastifyInstance,  _: any, done: () => void ) => {
 
       const deleteCmd = new DeleteMessageCommand({
         QueueUrl: queueUrl,
-        ReceiptHandle: id
+        ReceiptHandle: Buffer.from(id, "base64").toString("utf8")
       });
 
       try {

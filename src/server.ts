@@ -73,10 +73,10 @@ export const build = async (opts: FastifyServerOptions = {}): Promise<FastifyIns
     }
   });
 
+  server.register(jobRoutes);
   server.register(crawlRoutes);
   server.register(pageRoutes);
-  server.register(jobRoutes);
-
+  
   await server.ready();
   return server;
 };

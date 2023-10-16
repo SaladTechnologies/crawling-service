@@ -104,7 +104,7 @@ export const routes = (server: FastifyInstance, _: any, done: () => void) => {
     },
     async (req, reply) => {
       const { id } = req.params;
-      const { content, links, url } = req.body;
+      const { content, links } = req.body;
 
       // Upload the content to S3
       const contentKey = `${id}.html`;
