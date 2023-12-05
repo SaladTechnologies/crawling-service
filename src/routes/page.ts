@@ -2,7 +2,7 @@
 import { FastifyInstance } from 'fastify';
 import { dynamodb, s3 } from '../clients';
 import { Crawl, Page, PageSubmission, pageSchema, pageSubmissionSchema } from '../types';
-import { QueryCommand, GetItemCommand, UpdateItemCommand } from '@aws-sdk/client-dynamodb';
+import { QueryCommand, GetItemCommand, UpdateItemCommand, UpdateItemCommandInput } from '@aws-sdk/client-dynamodb';
 import config from '../config';
 import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { queueUrlToCrawl, unmarshallPage } from '../util';
@@ -133,24 +133,28 @@ export const routes = (server: FastifyInstance, _: any, done: () => void) => {
       }).filter(link => link !== "")));
 
       // Update the page in DynamoDB
-      const updateCmd = new UpdateItemCommand({
+      const updateParams: UpdateItemCommandInput = {
         TableName: config.aws.dynamodb.pagesTable,
         Key: {
           id: { S: id }
         },
-        UpdateExpression: "SET #status = :status, #links = :links, #content_key = :content_key",
+        UpdateExpression: "SET #status = :status, #content_key = :content_key",
         ExpressionAttributeNames: {
           "#status": "status",
-          "#links": "links",
           "#content_key": "content_key"
         },
         ExpressionAttributeValues: {
           ":status": { S: "completed" },
-          ":links": { SS: uniqueLinks },
           ":content_key": { S: contentKey },
         },
         ReturnValues: "ALL_NEW"
-      });
+      };
+      if (uniqueLinks.length > 0) {
+        updateParams.UpdateExpression += ", #links = :links)";
+        updateParams.ExpressionAttributeNames!["#links"] = "links";
+        updateParams.ExpressionAttributeValues![":links"] = { SS: uniqueLinks };
+      }
+      const updateCmd = new UpdateItemCommand(updateParams);
 
       let page: Page;
       try {

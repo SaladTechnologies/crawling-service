@@ -280,3 +280,13 @@ export function unmarshallCrawl(item: any): Crawl {
     same_domain: item.same_domain.BOOL
   };
 }
+
+export function popRandom<T>(arr: T[]): T | undefined {
+  if (!arr.length) {
+    return undefined;
+  }
+  const index = Math.floor(Math.random() * arr.length);
+  const item = arr[index];
+  arr.splice(index, 1);
+  return item;
+}

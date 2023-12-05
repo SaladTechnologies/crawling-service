@@ -2,19 +2,19 @@ import { FastifyInstance } from "fastify";
 import { sqs, dynamodb } from "../clients";
 import NodeCache from "node-cache";
 import { Crawl, CrawlJob, crawlJobSchema } from "../types";
-import { getRunningCrawls, getQueueUrl } from "../util";
+import { getRunningCrawls, getQueueUrl, popRandom, getCrawl } from "../util";
 import { ReceiveMessageCommand, DeleteMessageCommand } from "@aws-sdk/client-sqs";
 import { UpdateItemCommand } from "@aws-sdk/client-dynamodb";
 import config from "../config";
 
 const cache = new NodeCache({
-  stdTTL: 60,
+  stdTTL: 10,
   checkperiod: 0,
   useClones: false,
 });
 
-export const routes = (server: FastifyInstance,  _: any, done: () => void ) => {
-  server.get<{ Querystring: { crawl?: string, num?: number }, Response: CrawlJob[]}>(
+export const routes = (server: FastifyInstance, _: any, done: () => void) => {
+  server.get<{ Querystring: { crawl?: string, num?: number }, Response: CrawlJob[] }>(
     "/job",
     {
       schema: {
@@ -39,8 +39,9 @@ export const routes = (server: FastifyInstance,  _: any, done: () => void ) => {
     },
     async (req, reply) => {
       let { crawl, num } = req.query;
+      let runningCrawls;
       if (!crawl) {
-        let runningCrawls = cache.get("runningCrawls") as Crawl[];
+        runningCrawls = cache.get("runningCrawls") as Crawl[];
         if (!runningCrawls) {
           runningCrawls = await getRunningCrawls();
           cache.set("runningCrawls", runningCrawls);
@@ -54,52 +55,62 @@ export const routes = (server: FastifyInstance,  _: any, done: () => void ) => {
 
         const randomCrawl = runningCrawls[Math.floor(Math.random() * runningCrawls.length)];
         crawl = randomCrawl.id;
+      } else {
+        runningCrawls = [await getCrawl(crawl)]
       }
 
-      const queueUrl = await getQueueUrl(crawl);
+      while (runningCrawls.length) {
+        const crawlObj = popRandom(runningCrawls) as Crawl;
+        crawl = crawlObj.id;
 
-      const getCmd = new ReceiveMessageCommand({
-        QueueUrl: queueUrl,
-        MaxNumberOfMessages: num,
-        WaitTimeSeconds: 1
-      });
+        const queueUrl = await getQueueUrl(crawl);
 
-      const messages = await sqs.send(getCmd);
-      if (!messages.Messages) {
-        return [];
-      }
+        const getCmd = new ReceiveMessageCommand({
+          QueueUrl: queueUrl,
+          MaxNumberOfMessages: num,
+          WaitTimeSeconds: 1
+        });
 
-      const jobs: CrawlJob[] = messages.Messages.map(message => {
-        const body = JSON.parse(message.Body || "{}");
-        return {
-          page_id: body.page_id,
-          crawl_id: body.crawl_id,
-          url: body.url,
-          delete_id: Buffer.from(message.ReceiptHandle!).toString("base64")
+        const messages = await sqs.send(getCmd);
+        if (!messages.Messages) {
+          continue;
         }
-      });
 
-      // Mark all pages as crawling
-      await Promise.all(jobs.map(async job => {
-        const updateCmd = new UpdateItemCommand({
-          TableName: config.aws.dynamodb.pagesTable,
-          Key: {
-            id: { S: job.page_id }
-          },
-          UpdateExpression: "SET #status = :status, visited = :visited",
-          ExpressionAttributeNames: {
-            "#status": "status"
-          },
-          ExpressionAttributeValues: {
-            ":status": { S: "crawling" },
-            ":visited": { N: new Date().getTime().toString() }
+        const jobs: CrawlJob[] = messages.Messages.map(message => {
+          const body = JSON.parse(message.Body || "{}");
+          return {
+            page_id: body.page_id,
+            crawl_id: body.crawl_id,
+            url: body.url,
+            delete_id: Buffer.from(message.ReceiptHandle!).toString("base64")
           }
         });
 
-        await dynamodb.send(updateCmd);
-      }))
+        // Mark all pages as crawling
+        await Promise.all(jobs.map(async job => {
+          console.log(job);
+          const updateCmd = new UpdateItemCommand({
+            TableName: config.aws.dynamodb.pagesTable,
+            Key: {
+              id: { S: job.page_id }
+            },
+            UpdateExpression: "SET #status = :status, visited = :visited",
+            ExpressionAttributeNames: {
+              "#status": "status"
+            },
+            ExpressionAttributeValues: {
+              ":status": { S: "crawling" },
+              ":visited": { N: new Date().getTime().toString() }
+            }
+          });
 
-      return jobs;
+          return await dynamodb.send(updateCmd);
+        }))
+
+        return jobs;
+      }
+
+      return [];
     }
   )
 
