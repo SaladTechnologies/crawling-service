@@ -25,12 +25,12 @@ This also creates an IAM user with the appropriate permissions, and exports the 
 
 **Access Key Id**
 ```bash
-tofu output crawler-service-access-key | xclip -selection clipboard
+tofu output --raw crawler-service-access-key | xclip -selection clipboard
 ```
 
 **Secret Access Key**
 ```bash
-tofu output crawler-service-secret-key | xclip -selection clipboard
+tofu output --raw crawler-service-secret-key | xclip -selection clipboard
 ```
 
 
