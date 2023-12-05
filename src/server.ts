@@ -19,7 +19,7 @@ export const build = async (opts: FastifyServerOptions = {}): Promise<FastifyIns
         version: config.server.version,
       },
       host: config.server.publicUrl,
-      schemes: ["http"],
+      schemes: ["http", "https"],
       consumes: ["application/json"],
       produces: ["application/json"],
     },

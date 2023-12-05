@@ -9,7 +9,7 @@ services:
       - "3000:3000"
     environment:
       - PORT=3000
-      - HOST=0.0.0.0
+      - "HOST=::"
       - AWS_DEFAULT_REGION=us-east-2
       - AWS_PROFILE=crawler-service
       - S3_BUCKET_NAME=salad-crawler-page-data
